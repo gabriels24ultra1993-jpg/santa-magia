@@ -1,0 +1,6 @@
+{
+  "name": "SANTA MAGIA: Carta y Llamada de Papá Noel",
+  "description": "Generador de cartas oficiales de Papá Noel y los Reyes Magos, simulador de llamada mágica de Santa y muro navideño familiar en 6 idiomas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

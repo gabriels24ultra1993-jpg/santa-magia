@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "WallPhotoRecord": {
+      "title": "WallPhotoRecord",
+      "description": "A festive WebP (~30KB) family photo in the 25-slot FIFO live rotating showcase.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique document ID",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Short festive caption without HTML brackets",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[^<>]+$"
+        },
+        "author": {
+          "type": "string",
+          "description": "Family or city name without HTML brackets",
+          "minLength": 1,
+          "maxLength": 50,
+          "pattern": "^[^<>]+$"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "WebP/JPEG/PNG data URL (~30KB) or verified local asset path",
+          "minLength": 10,
+          "maxLength": 120000,
+          "pattern": "^(data:image/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+|/src/assets/images/[a-zA-Z0-9_\\-\\.]+\\.jpg)$"
+        },
+        "likes": {
+          "type": "integer",
+          "description": "Total Likes count"
+        },
+        "createdAt": {
+          "type": "integer",
+          "description": "Creation epoch milliseconds"
+        },
+        "isSample": {
+          "type": "boolean",
+          "description": "Whether this is a starter sample photo"
+        },
+        "reported": {
+          "type": "boolean",
+          "description": "Safety moderation flag"
+        }
+      },
+      "required": ["id", "title", "author", "imageUrl", "likes", "createdAt", "reported"]
+    },
+    "PodiumSlotRecord": {
+      "title": "PodiumSlotRecord",
+      "description": "Permanent Top 1, Top 2, or Top 3 Podium photo persisted in cloud.",
+      "type": "object",
+      "properties": {
+        "slotRank": {
+          "type": "integer",
+          "description": "Podium rank 1, 2, or 3"
+        },
+        "photoId": {
+          "type": "string",
+          "description": "Source photo ID",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[^<>]+$"
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "pattern": "^[^<>]+$"
+        },
+        "imageUrl": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 120000,
+          "pattern": "^(data:image/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+|/src/assets/images/[a-zA-Z0-9_\\-\\.]+\\.jpg)$"
+        },
+        "likes": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "integer"
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "reported": {
+          "type": "boolean"
+        }
+      },
+      "required": ["slotRank", "photoId", "title", "author", "imageUrl", "likes", "createdAt", "reported"]
+    }
+  },
+  "firestore": {
+    "/podium_top3/{slotId}": {
+      "schema": { "$ref": "#/entities/PodiumSlotRecord" },
+      "description": "Permanent cloud storage for Top 1, Top 2, and Top 3 highest-liked Christmas photos (realtime onSnapshot)."
+    },
+    "/wall_carousel/{photoId}": {
+      "schema": { "$ref": "#/entities/WallPhotoRecord" },
+      "description": "FIFO live showcase capped at 25 recent WebP photos (~30KB each)."
+    }
+  }
+}

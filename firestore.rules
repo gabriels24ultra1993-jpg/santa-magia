@@ -1,0 +1,145 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 2 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidSlotId(slotId) {
+      return slotId in ['rank_1', 'rank_2', 'rank_3'];
+    }
+
+    function slotRankMatchesId(slotId, rank) {
+      return (slotId == 'rank_1' && rank == 1)
+        || (slotId == 'rank_2' && rank == 2)
+        || (slotId == 'rank_3' && rank == 3);
+    }
+
+    function isSafeText(val, maxLen) {
+      return val is string
+        && val.size() >= 1
+        && val.size() <= maxLen
+        && val.matches('^[^<>]+$');
+    }
+
+    function isValidImageUrl(url) {
+      return url is string
+        && url.size() >= 10
+        && url.size() <= 120000
+        && (
+          url.matches('^data:image/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$')
+          || url.matches('^/src/assets/images/[a-zA-Z0-9_\\-\\.]+\\.jpg$')
+        );
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidWallPhoto(data) {
+      return data.keys().hasAll(['id', 'title', 'author', 'imageUrl', 'likes', 'createdAt', 'reported'])
+        && data.keys().hasOnly(['id', 'title', 'author', 'imageUrl', 'likes', 'createdAt', 'isSample', 'reported'])
+        && isValidId(data.id)
+        && isSafeText(data.title, 80)
+        && isSafeText(data.author, 50)
+        && isValidImageUrl(data.imageUrl)
+        && data.likes is int && data.likes >= 0 && data.likes <= 1000000
+        && data.createdAt is int && data.createdAt >= 1700000000000 && data.createdAt <= 2000000000000
+        && data.reported is bool
+        && (!('isSample' in data) || data.isSample is bool);
+    }
+
+    function isValidPodiumSlot(data, slotId) {
+      return data.keys().hasAll(['slotRank', 'photoId', 'title', 'author', 'imageUrl', 'likes', 'createdAt', 'reported'])
+        && data.keys().hasOnly(['slotRank', 'photoId', 'title', 'author', 'imageUrl', 'likes', 'createdAt', 'isSample', 'reported'])
+        && data.slotRank is int && slotRankMatchesId(slotId, data.slotRank)
+        && isValidId(data.photoId)
+        && isSafeText(data.title, 80)
+        && isSafeText(data.author, 50)
+        && isValidImageUrl(data.imageUrl)
+        && data.likes is int && data.likes >= 0 && data.likes <= 1000000
+        && data.createdAt is int && data.createdAt >= 1700000000000 && data.createdAt <= 2000000000000
+        && data.reported is bool
+        && (!('isSample' in data) || data.isSample is bool);
+    }
+
+    // Connection check document (read-only)
+    match /test/connection {
+      allow get: if true;
+      allow write, delete: if false;
+    }
+
+    // Permanent Top 3 Podium (strict field/size validation, no external deletion, no low-vote overwrite)
+    match /podium_top3/{slotId} {
+      allow get: if isValidSlotId(slotId);
+      allow list: if resource.data.slotRank >= 1 && resource.data.slotRank <= 3;
+      allow create: if isValidSlotId(slotId)
+        && isValidPodiumSlot(incoming(), slotId)
+        && incoming().reported == false
+        && incoming().likes <= 50;
+      allow update: if isValidSlotId(slotId)
+        && isValidPodiumSlot(incoming(), slotId)
+        && (
+          // Action 1: Single +1 Like increment on existing podium photo
+          (incoming().diff(existing()).affectedKeys().hasOnly(['likes'])
+           && incoming().photoId == existing().photoId
+           && incoming().likes == existing().likes + 1)
+          ||
+          // Action 2: Community safety report
+          (incoming().diff(existing()).affectedKeys().hasOnly(['reported'])
+           && incoming().photoId == existing().photoId
+           && incoming().reported == true)
+          ||
+          // Action 3: Promote higher-liked photo or replace reported slot
+          (incoming().diff(existing()).affectedKeys().hasOnly([
+            'slotRank', 'photoId', 'title', 'author', 'imageUrl', 'likes', 'createdAt', 'isSample', 'reported'
+          ])
+           && incoming().reported == false
+           && (existing().reported == true || incoming().likes >= existing().likes))
+        );
+      allow delete: if false;
+    }
+
+    // 25-photo FIFO rotating showcase (no external deletion; FIFO slot reuse only for newer photos)
+    match /wall_carousel/{photoId} {
+      allow get: if isValidId(photoId);
+      allow list: if resource.data.reported == false;
+      allow create: if isValidId(photoId)
+        && isValidWallPhoto(incoming())
+        && incoming().id == photoId
+        && incoming().reported == false
+        && incoming().likes <= 50;
+      allow update: if isValidId(photoId)
+        && isValidWallPhoto(incoming())
+        && incoming().id == photoId
+        && (
+          // Action 1: Single +1 vote increment
+          (incoming().diff(existing()).affectedKeys().hasOnly(['likes'])
+           && incoming().likes == existing().likes + 1)
+          ||
+          // Action 2: Safety report flag
+          (incoming().diff(existing()).affectedKeys().hasOnly(['reported'])
+           && incoming().reported == true)
+          ||
+          // Action 3: FIFO slot recycle when 25-photo cap is reached (strictly newer, 1 like, non-sample)
+          (incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'author', 'imageUrl', 'likes', 'createdAt', 'isSample', 'reported'
+          ])
+           && incoming().createdAt > existing().createdAt
+           && incoming().likes == 1
+           && incoming().reported == false
+           && incoming().isSample == false)
+        );
+      allow delete: if false;
+    }
+  }
+}
