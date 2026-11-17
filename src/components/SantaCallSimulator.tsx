@@ -11,9 +11,10 @@ import {
 } from 'lucide-react';
 import { TranslationPack } from '../i18n/translations';
 import { BehaviorType, LetterData } from '../types';
+import santaPortraitImg from '../assets/images/santa_call_portrait_1794938715921.jpg';
 import { audioEngine } from '../utils/audioEngine';
 
-const SANTA_PORTRAIT_URL = '/src/assets/images/santa_call_portrait_1794938715921.jpg';
+const SANTA_PORTRAIT_URL = santaPortraitImg;
 const COUNTDOWN_SECONDS = 30;
 const RING_TIMEOUT_MS = 15000;
 

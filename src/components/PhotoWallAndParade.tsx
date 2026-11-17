@@ -20,6 +20,7 @@ import { WallPhoto } from '../types';
 import { audioEngine } from '../utils/audioEngine';
 import { checkImageFamilySafety, compressImageToWebP } from '../utils/imageSafety';
 import { ParadeScheduleState } from '../utils/paradeSchedule';
+import { handleWallImageError, resolveWallImageUrl } from '../utils/sampleIllustrations';
 import {
   getUploadRateLimitState,
   sanitizeFinalText,
@@ -316,6 +317,7 @@ export const PhotoWallSection: React.FC<PhotoWallProps> = ({
             <img
               src={previewDataUrl}
               alt={title || t.wallPhotoTitleLabel}
+              onError={(e) => handleWallImageError(e, 'preview')}
               className="w-20 h-16 object-cover rounded-lg border border-amber-300/40"
             />
             <button
@@ -421,9 +423,10 @@ export const PhotoWallSection: React.FC<PhotoWallProps> = ({
               >
                 <div className="relative aspect-[4/3] bg-[#0f0b15] overflow-hidden">
                   <img
-                    src={photo.imageUrl}
+                    src={resolveWallImageUrl(photo.imageUrl, photo.id)}
                     alt={photo.title}
                     referrerPolicy="no-referrer"
+                    onError={(e) => handleWallImageError(e, photo.id)}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                   <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 via-black/35 to-transparent pointer-events-none" />
@@ -677,9 +680,10 @@ export const VideoParadeOverlay: React.FC<VideoParadeOverlayProps> = ({
       {/* Background Ken Burns Photo */}
       <div key={current.id} className="absolute inset-0 overflow-hidden">
         <img
-          src={current.imageUrl}
+          src={resolveWallImageUrl(current.imageUrl, current.id)}
           alt={current.title}
           referrerPolicy="no-referrer"
+          onError={(e) => handleWallImageError(e, current.id)}
           className="w-full h-full object-cover animate-ken-burns opacity-85"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/70" />

@@ -4,6 +4,7 @@ import { TranslationPack } from '../i18n/translations';
 import { WallPhoto } from '../types';
 import { audioEngine } from '../utils/audioEngine';
 import { ParadeScheduleState } from '../utils/paradeSchedule';
+import { handleWallImageError, resolveWallImageUrl } from '../utils/sampleIllustrations';
 
 interface WinnerHeroCoverProps {
   t: TranslationPack;
@@ -141,9 +142,10 @@ export const WinnerHeroCover: React.FC<WinnerHeroCoverProps> = ({
             <div className="relative h-full min-h-[260px] sm:min-h-[330px] rounded-[21px] overflow-hidden bg-[#120d18]">
               {first ? (
                 <img
-                  src={first.imageUrl}
+                  src={resolveWallImageUrl(first.imageUrl, first.id)}
                   alt={first.title}
                   referrerPolicy="no-referrer"
+                  onError={(e) => handleWallImageError(e, first.id)}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -214,9 +216,10 @@ export const WinnerHeroCover: React.FC<WinnerHeroCoverProps> = ({
                   >
                     <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-[#0f0b15] shrink-0">
                       <img
-                        src={photo.imageUrl}
+                        src={resolveWallImageUrl(photo.imageUrl, photo.id)}
                         alt={photo.title}
                         referrerPolicy="no-referrer"
+                        onError={(e) => handleWallImageError(e, photo.id)}
                         className="w-full h-full object-cover"
                       />
                     </div>
