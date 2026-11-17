@@ -1,0 +1,652 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Phone,
+  PhoneMissed,
+  PhoneOff,
+  RotateCcw,
+  Sparkles,
+  Volume2,
+  X,
+  Zap,
+} from 'lucide-react';
+import { TranslationPack } from '../i18n/translations';
+import { BehaviorType, LetterData } from '../types';
+import { audioEngine } from '../utils/audioEngine';
+
+const SANTA_PORTRAIT_URL = '/src/assets/images/santa_call_portrait_1794938715921.jpg';
+const COUNTDOWN_SECONDS = 30;
+const RING_TIMEOUT_MS = 15000;
+
+export type CallPhase = 'countdown' | 'ringing' | 'connected' | 'missed';
+
+interface SantaCallSimulatorProps {
+  t: TranslationPack;
+  letter: LetterData;
+  onChangeLetter: (updated: LetterData) => void;
+  isOpen: boolean;
+  initialMode: 'countdown' | 'ringing';
+  onPhaseChange?: (phase: CallPhase | 'closed') => void;
+  onOpenCall: () => void;
+  onCloseCall: () => void;
+}
+
+function triggerCallVibration(): void {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try {
+      navigator.vibrate([500, 300, 500, 300, 500]);
+    } catch {
+      // ignore if browser blocks vibrate
+    }
+  }
+}
+
+function stopVibration(): void {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try {
+      navigator.vibrate(0);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
+  t,
+  letter,
+  onChangeLetter,
+  isOpen,
+  initialMode,
+  onPhaseChange,
+  onOpenCall,
+  onCloseCall,
+}) => {
+  const [callState, setCallState] = useState<CallPhase>(initialMode);
+  const [countdownSec, setCountdownSec] = useState<number>(COUNTDOWN_SECONDS);
+  const [seconds, setSeconds] = useState(0);
+  const [speaking, setSpeaking] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  const callTimerRef = useRef<number | null>(null);
+  const countdownIntervalRef = useRef<number | null>(null);
+  const ringTimeoutRef = useRef<number | null>(null);
+  const vibrateIntervalRef = useRef<number | null>(null);
+
+  const scriptText = t.buildSantaCallScript({
+    children: letter.children,
+  });
+
+  const clearAllTimers = useCallback(() => {
+    if (callTimerRef.current !== null) {
+      clearInterval(callTimerRef.current);
+      callTimerRef.current = null;
+    }
+    if (countdownIntervalRef.current !== null) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    if (ringTimeoutRef.current !== null) {
+      clearTimeout(ringTimeoutRef.current);
+      ringTimeoutRef.current = null;
+    }
+    if (vibrateIntervalRef.current !== null) {
+      clearInterval(vibrateIntervalRef.current);
+      vibrateIntervalRef.current = null;
+    }
+  }, []);
+
+  const speakSantaGreeting = () => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(scriptText);
+      utterance.lang = t.callVoiceLang;
+      utterance.pitch = 0.82;
+      utterance.rate = 0.94;
+      utterance.volume = 1;
+
+      const voices = window.speechSynthesis.getVoices();
+      const langPrefix = t.callVoiceLang.slice(0, 2).toLowerCase();
+      const preferred =
+        voices.find(
+          (v) =>
+            v.lang.toLowerCase().startsWith(langPrefix) &&
+            /male|jorge|pablo|daniel|thomas|luca|hans|david/i.test(v.name)
+        ) || voices.find((v) => v.lang.toLowerCase().startsWith(langPrefix));
+      if (preferred) {
+        utterance.voice = preferred;
+      }
+
+      utterance.onstart = () => setSpeaking(true);
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => setSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      setSpeaking(false);
+    }
+  };
+
+  // Notify parent whenever call phase changes (so ambient music pauses during ringing/connected)
+  useEffect(() => {
+    onPhaseChange?.(isOpen ? callState : 'closed');
+  }, [isOpen, callState, onPhaseChange]);
+
+  // Reset state when overlay opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      audioEngine.stopRingtone();
+      stopVibration();
+      clearAllTimers();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setSeconds(0);
+      setSpeaking(false);
+      setCountdownSec(COUNTDOWN_SECONDS);
+      setCallState(initialMode);
+      return;
+    }
+
+    setSeconds(0);
+    setSpeaking(false);
+    setCountdownSec(COUNTDOWN_SECONDS);
+    setCallState(initialMode);
+
+    return () => {
+      audioEngine.stopRingtone();
+      stopVibration();
+      clearAllTimers();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [isOpen, initialMode, clearAllTimers]);
+
+  // Drive Countdown (30s -> 0s) and Ringing (vibration + ringtone + 15s missed call timeout)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (callState === 'countdown') {
+      audioEngine.stopRingtone();
+      stopVibration();
+      countdownIntervalRef.current = window.setInterval(() => {
+        setCountdownSec((prev) => {
+          if (prev <= 1) {
+            if (countdownIntervalRef.current !== null) {
+              clearInterval(countdownIntervalRef.current);
+              countdownIntervalRef.current = null;
+            }
+            setCallState('ringing');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        if (countdownIntervalRef.current !== null) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+      };
+    }
+
+    if (callState === 'ringing') {
+      audioEngine.startRingtone();
+      triggerCallVibration();
+      vibrateIntervalRef.current = window.setInterval(() => {
+        triggerCallVibration();
+      }, 2400);
+
+      ringTimeoutRef.current = window.setTimeout(() => {
+        audioEngine.stopRingtone();
+        stopVibration();
+        if (vibrateIntervalRef.current !== null) {
+          clearInterval(vibrateIntervalRef.current);
+          vibrateIntervalRef.current = null;
+        }
+        setCallState('missed');
+      }, RING_TIMEOUT_MS);
+
+      return () => {
+        audioEngine.stopRingtone();
+        stopVibration();
+        if (vibrateIntervalRef.current !== null) {
+          clearInterval(vibrateIntervalRef.current);
+          vibrateIntervalRef.current = null;
+        }
+        if (ringTimeoutRef.current !== null) {
+          clearTimeout(ringTimeoutRef.current);
+          ringTimeoutRef.current = null;
+        }
+      };
+    }
+  }, [isOpen, callState]);
+
+  const handleCallNow = () => {
+    audioEngine.playSleighBells('soft');
+    if (countdownIntervalRef.current !== null) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setCountdownSec(0);
+    setCallState('ringing');
+  };
+
+  const handleAnswer = () => {
+    if (ringTimeoutRef.current !== null) {
+      clearTimeout(ringTimeoutRef.current);
+      ringTimeoutRef.current = null;
+    }
+    if (vibrateIntervalRef.current !== null) {
+      clearInterval(vibrateIntervalRef.current);
+      vibrateIntervalRef.current = null;
+    }
+    stopVibration();
+    setCallState('connected');
+    audioEngine.playSantaAnswerBurst();
+    callTimerRef.current = window.setInterval(() => {
+      setSeconds((prev) => prev + 1);
+    }, 1000);
+    window.setTimeout(() => {
+      speakSantaGreeting();
+    }, 450);
+  };
+
+  const handleRetryCountdown = () => {
+    audioEngine.playSleighBells('bright');
+    setCountdownSec(COUNTDOWN_SECONDS);
+    setCallState('countdown');
+  };
+
+  const handleHangup = () => {
+    audioEngine.stopRingtone();
+    stopVibration();
+    clearAllTimers();
+    audioEngine.playSleighBells('soft');
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    onCloseCall();
+  };
+
+  const formatDuration = (sec: number) => {
+    const m = String(Math.floor(sec / 60)).padStart(2, '0');
+    const s = String(sec % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const primaryChild = letter.children[0];
+  const countdownProgress = Math.max(0, Math.min(100, (countdownSec / COUNTDOWN_SECONDS) * 100));
+
+  return (
+    <>
+      <section className="space-y-6">
+        <div className="space-y-2 max-w-2xl">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold text-amber-100 [text-wrap:balance]">
+            {t.callSectionTitle}
+          </h2>
+          <p className="text-sm sm:text-base text-amber-100/75 leading-relaxed">
+            {t.callSectionSubtitle}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          {/* Santa Preview Card */}
+          <div className="lg:col-span-5 bg-[#17121f]/95 border border-amber-200/15 rounded-2xl p-6 flex flex-col items-center justify-center text-center space-y-4">
+            <div className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-full overflow-hidden border-4 border-amber-400/70 shadow-xl bg-red-950 flex items-center justify-center">
+              {!imgError ? (
+                <img
+                  src={SANTA_PORTRAIT_URL}
+                  alt={t.callCallerSanta}
+                  referrerPolicy="no-referrer"
+                  onError={() => setImgError(true)}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-6xl" role="img" aria-label={t.callCallerSanta}>
+                  🎅
+                </span>
+              )}
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-display text-xl font-bold text-amber-50">
+                {t.callCallerSanta}
+              </h3>
+              <p className="text-xs text-amber-200/70">{t.callCallerLocation}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                audioEngine.playSleighBells('bright');
+                onOpenCall();
+              }}
+              className="w-full min-h-[52px] px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-base flex items-center justify-center gap-2.5 shadow-lg shadow-emerald-900/40 transition-colors"
+            >
+              <Phone className="w-5 h-5 shrink-0" />
+              <span>{t.callTriggerBtn}</span>
+            </button>
+            <p className="text-xs text-amber-100/60 leading-relaxed max-w-xs">
+              {t.callRecordHint}
+            </p>
+          </div>
+
+          {/* Quick Call Controls (NO written script revealed on screen) */}
+          <div className="lg:col-span-7 bg-[#17121f]/95 border border-amber-200/15 rounded-2xl p-5 sm:p-6 space-y-5 flex flex-col justify-center">
+            {letter.children.length <= 1 ? (
+              <div className="space-y-1.5">
+                <label htmlFor="call-name" className="block text-xs font-semibold text-amber-200/80">
+                  {t.fieldChildName}
+                </label>
+                <input
+                  id="call-name"
+                  type="text"
+                  value={primaryChild?.name || ''}
+                  onChange={(e) => {
+                    const next = letter.children.map((c, idx) =>
+                      idx === 0 ? { ...c, name: e.target.value } : c
+                    );
+                    onChangeLetter({ ...letter, children: next });
+                  }}
+                  placeholder={t.fieldChildNamePlaceholder}
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#0f0b15] border border-amber-200/20 text-amber-50 placeholder:text-amber-100/35 text-sm focus:outline-none focus:border-amber-400"
+                />
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <span className="block text-xs font-semibold text-amber-200/80">
+                  {t.allSiblingsTab}
+                </span>
+                <p className="text-base font-display font-bold text-amber-200">
+                  {t.formatDisplayNames(letter.children)}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-amber-200/80">
+                {t.fieldBehavior}
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {(
+                  [
+                    { id: 'super', label: t.behaviorSuper },
+                    { id: 'very', label: t.behaviorVery },
+                    { id: 'trying', label: t.behaviorTrying },
+                  ] as Array<{ id: BehaviorType; label: string }>
+                ).map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => {
+                      audioEngine.playSleighBells('soft');
+                      onChangeLetter({ ...letter, behavior: b.id });
+                    }}
+                    className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                      letter.behavior === b.id
+                        ? 'bg-amber-400/20 border-amber-400 text-amber-100'
+                        : 'bg-[#0f0b15] border-amber-200/15 text-amber-100/75 hover:border-amber-200/35'
+                    }`}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-[#0f0b15] border border-amber-200/15 p-4 flex items-center gap-3 text-xs sm:text-sm text-amber-100/75">
+              <Volume2 className="w-5 h-5 text-amber-300 shrink-0" />
+              <span>{t.callRecordHint}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Fullscreen Overlay: 30s Countdown -> Ringing (Vibration + 15s Timeout) -> Connected / Missed */}
+      {isOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.callCallerSanta}
+          className="fixed inset-0 z-50 h-[100dvh] w-full bg-gradient-to-b from-[#160b10] via-[#0c0a14] to-[#050408] text-white flex flex-col items-center justify-between px-6 py-10 sm:py-12 overflow-hidden"
+        >
+          {callState === 'countdown' && (
+            <>
+              <button
+                type="button"
+                onClick={handleHangup}
+                aria-label={t.closeBtn}
+                className="absolute top-4 right-4 min-w-[44px] min-h-[44px] rounded-xl bg-white/10 hover:bg-white/20 text-amber-100 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center space-y-2 mt-6 max-w-md">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                  {t.callCallerLocation}
+                </p>
+                <h2 className="font-display text-2xl sm:text-3xl font-bold text-amber-50 [text-wrap:balance]">
+                  {t.callCountdownTitle(countdownSec)}
+                </h2>
+              </div>
+
+              {/* Big Circular Countdown Clock */}
+              <div className="relative flex flex-col items-center justify-center my-auto space-y-6">
+                <div className="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="54"
+                      fill="none"
+                      stroke="rgba(253, 230, 138, 0.14)"
+                      strokeWidth="6"
+                    />
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="54"
+                      fill="none"
+                      stroke="#fbbf24"
+                      strokeWidth="6"
+                      strokeLinecap="round"
+                      strokeDasharray={339.292}
+                      strokeDashoffset={339.292 * (1 - countdownProgress / 100)}
+                      className="transition-[stroke-dashoffset] duration-700 ease-linear"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="font-mono-num tabular-nums text-6xl sm:text-7xl font-bold text-amber-300">
+                      {countdownSec}
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-amber-100/60 mt-1">
+                      sec
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-sm sm:text-base text-amber-100/80 text-center max-w-sm leading-relaxed">
+                  {t.callCountdownSubtitle}
+                </p>
+              </div>
+
+              <div className="w-full max-w-sm mb-4">
+                <button
+                  type="button"
+                  onClick={handleCallNow}
+                  className="w-full min-h-[52px] px-6 py-3.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-base flex items-center justify-center gap-2 shadow-xl shadow-amber-500/20 transition-colors"
+                >
+                  <Zap className="w-5 h-5 shrink-0" />
+                  <span>{t.callNowBtn}</span>
+                </button>
+              </div>
+            </>
+          )}
+
+          {callState === 'missed' && (
+            <>
+              <button
+                type="button"
+                onClick={handleHangup}
+                aria-label={t.closeBtn}
+                className="absolute top-4 right-4 min-w-[44px] min-h-[44px] rounded-xl bg-white/10 hover:bg-white/20 text-amber-100 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="my-auto flex flex-col items-center text-center max-w-md space-y-6">
+                <div className="w-24 h-24 rounded-full bg-red-950/70 border-2 border-red-500/50 flex items-center justify-center text-red-400 shadow-2xl">
+                  <PhoneMissed className="w-11 h-11" />
+                </div>
+
+                <div className="space-y-3">
+                  <h2 className="font-display text-2xl sm:text-3xl font-bold text-amber-100 [text-wrap:balance]">
+                    {t.callMissedTitle}
+                  </h2>
+                  <p className="text-sm sm:text-base text-amber-100/75 leading-relaxed">
+                    {t.callMissedSubtitle}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRetryCountdown}
+                  className="w-full min-h-[54px] px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-base flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-950/60 transition-colors"
+                >
+                  <RotateCcw className="w-5 h-5 shrink-0" />
+                  <span>{t.callRetryCountdownBtn}</span>
+                </button>
+              </div>
+              <div />
+            </>
+          )}
+
+          {(callState === 'ringing' || callState === 'connected') && (
+            <>
+              <div className="text-center space-y-2 mt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300/90">
+                  {callState === 'ringing' ? t.callIncomingStatus : t.callConnectedStatus}
+                </p>
+                <h2 className="font-display text-3xl sm:text-4xl font-bold text-white">
+                  {t.callCallerSanta}
+                </h2>
+                <p className="text-sm text-amber-100/70">
+                  {callState === 'ringing' ? (
+                    t.callCallerLocation
+                  ) : (
+                    <span className="font-mono-num text-emerald-300 font-semibold">
+                      {formatDuration(seconds)}
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              <div className="relative flex flex-col items-center justify-center my-auto">
+                <div className="relative flex items-center justify-center">
+                  {callState === 'ringing' && (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="animate-call-halo absolute w-48 h-48 sm:w-56 sm:h-56 rounded-full border-2 border-emerald-400/50"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="animate-call-halo absolute w-48 h-48 sm:w-56 sm:h-56 rounded-full border-2 border-amber-300/40"
+                        style={{ animationDelay: '0.6s' }}
+                      />
+                    </>
+                  )}
+                  <div
+                    className={`relative w-44 h-44 sm:w-52 sm:h-52 rounded-full overflow-hidden border-4 shadow-2xl bg-red-950 flex items-center justify-center transition-transform ${
+                      speaking ? 'border-emerald-400 scale-[1.03]' : 'border-amber-300/80'
+                    }`}
+                  >
+                    {!imgError ? (
+                      <img
+                        src={SANTA_PORTRAIT_URL}
+                        alt={t.callCallerSanta}
+                        referrerPolicy="no-referrer"
+                        onError={() => setImgError(true)}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-7xl" role="img" aria-label={t.callCallerSanta}>
+                        🎅
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {callState === 'connected' && (
+                  <div className="mt-7 flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-emerald-300">
+                      <Volume2 className={`w-4 h-4 ${speaking ? 'animate-pulse' : ''}`} />
+                      <span>{t.callVoicePlayingNote}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        audioEngine.playSleighBells('soft');
+                        speakSantaGreeting();
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-200 hover:text-white px-4 py-2 rounded-xl bg-white/10 border border-white/15"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>{t.callReplayVoiceBtn}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {callState === 'ringing' ? (
+                <div className="w-full max-w-sm flex items-center justify-around gap-6 mb-4">
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleHangup}
+                      aria-label={t.callDeclineBtn}
+                      className="w-[68px] h-[68px] rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-xl shadow-red-900/50 transition-transform active:scale-95"
+                    >
+                      <PhoneOff className="w-7 h-7" />
+                    </button>
+                    <span className="text-xs font-medium text-amber-100/80">
+                      {t.callDeclineBtn}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAnswer}
+                      aria-label={t.callAnswerBtn}
+                      className="w-[74px] h-[74px] rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center shadow-xl shadow-emerald-900/50 transition-transform active:scale-95"
+                    >
+                      <Phone className="w-8 h-8" />
+                    </button>
+                    <span className="text-xs font-semibold text-emerald-300">
+                      {t.callAnswerBtn}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full max-w-sm flex flex-col items-center gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={handleHangup}
+                    className="min-h-[56px] px-8 py-3 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-base flex items-center justify-center gap-2.5 shadow-xl shadow-red-900/50 transition-transform active:scale-95"
+                  >
+                    <PhoneOff className="w-5 h-5" />
+                    <span>{t.callHangupBtn}</span>
+                  </button>
+                  <div className="flex items-center gap-1.5 text-[11px] text-amber-200/60">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{t.appName}</span>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+};
