@@ -43,6 +43,7 @@ import {
   uploadPhotoToCloudCarousel,
 } from './utils/cloudPhotoWall';
 import { getParadeScheduleState } from './utils/paradeSchedule';
+import { getSampleIllustrationDataUrl } from './utils/sampleIllustrations';
 import {
   getUploadRateLimitState,
   isValidPhotoUrlOrData,
@@ -50,13 +51,6 @@ import {
   sanitizeFinalText,
 } from './utils/security';
 import { loadAnonymousTrends } from './utils/trendAnalytics';
-
-const SAMPLE_IMAGE_URLS = [
-  '/src/assets/images/xmas_wall_tree_family_1794938715878.jpg',
-  '/src/assets/images/xmas_wall_cookies_santa_1794938716150.jpg',
-  '/src/assets/images/xmas_wall_snowy_cabin_1794938717250.jpg',
-  '/src/assets/images/xmas_wall_stockings_hearth_1794938718097.jpg',
-];
 
 const INITIAL_SAMPLE_LIKES = [42, 35, 29, 21];
 
@@ -134,7 +128,7 @@ export default function App() {
       id: sp.id,
       title: sp.title,
       author: sp.author,
-      imageUrl: SAMPLE_IMAGE_URLS[idx],
+      imageUrl: getSampleIllustrationDataUrl(idx),
       likes: INITIAL_SAMPLE_LIKES[idx],
       createdAt: 1700000000000 - idx * 100000,
       isSample: true,
@@ -147,7 +141,7 @@ export default function App() {
       id: sp.id,
       title: sp.title,
       author: sp.author,
-      imageUrl: SAMPLE_IMAGE_URLS[idx],
+      imageUrl: getSampleIllustrationDataUrl(idx),
       likes: INITIAL_SAMPLE_LIKES[idx],
       createdAt: 1700000000000 - idx * 100000,
       isSample: true,
