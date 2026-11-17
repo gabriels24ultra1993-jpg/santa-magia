@@ -12,18 +12,12 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { WallPhoto } from '../types';
+import { getSampleIllustrationDataUrl, resolveWallImageUrl } from './sampleIllustrations';
 import { isValidPhotoUrlOrData, sanitizeFinalText } from './security';
 
 const PODIUM_COLLECTION = 'podium_top3';
 const CAROUSEL_COLLECTION = 'wall_carousel';
 export const MAX_CAROUSEL_PHOTOS = 25;
-
-const SAMPLE_IMAGE_URLS = [
-  '/src/assets/images/xmas_wall_tree_family_1794938715878.jpg',
-  '/src/assets/images/xmas_wall_cookies_santa_1794938716150.jpg',
-  '/src/assets/images/xmas_wall_snowy_cabin_1794938717250.jpg',
-  '/src/assets/images/xmas_wall_stockings_hearth_1794938718097.jpg',
-];
 
 const INITIAL_SAMPLE_LIKES = [42, 35, 29, 21];
 
@@ -48,12 +42,14 @@ export function sortPhotosByLikes(photos: WallPhoto[]): WallPhoto[] {
 }
 
 function sanitizeSafeWallPhoto(photo: WallPhoto): WallPhoto {
+  const safeId = photo.id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) || `photo-${Date.now()}`;
+  const resolvedUrl = resolveWallImageUrl(photo.imageUrl, safeId);
   return {
     ...photo,
-    id: photo.id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) || `photo-${Date.now()}`,
+    id: safeId,
     title: sanitizeFinalText(photo.title, 80) || 'Christmas Moment',
     author: sanitizeFinalText(photo.author, 50) || 'Family',
-    imageUrl: isValidPhotoUrlOrData(photo.imageUrl) ? photo.imageUrl : SAMPLE_IMAGE_URLS[0],
+    imageUrl: isValidPhotoUrlOrData(resolvedUrl) ? resolvedUrl : getSampleIllustrationDataUrl(0),
     likes: Math.max(0, Math.min(1000000, Math.round(photo.likes))),
     createdAt: Math.max(1700000000000, Math.round(photo.createdAt)),
   };
@@ -180,7 +176,7 @@ export async function seedInitialCloudWallIfEmpty(
         id: sp.id,
         title: sp.title,
         author: sp.author,
-        imageUrl: SAMPLE_IMAGE_URLS[idx] || SAMPLE_IMAGE_URLS[0],
+        imageUrl: getSampleIllustrationDataUrl(idx),
         likes: INITIAL_SAMPLE_LIKES[idx] ?? 20,
         createdAt: baseTime - idx * 100000,
         isSample: true,

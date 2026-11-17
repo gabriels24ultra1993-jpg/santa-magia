@@ -48,7 +48,7 @@ export function sanitizeFinalText(raw: string, maxLength = 120): string {
 export function isValidPhotoUrlOrData(url: string): boolean {
   if (typeof url !== 'string' || url.length < 5 || url.length > 120000) return false;
   return (
-    /^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(url) ||
+    /^data:image\/(webp|jpeg|png|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(url) ||
     /^\/src\/assets\/images\/[a-zA-Z0-9_\-.]+\.jpg$/.test(url)
   );
 }
