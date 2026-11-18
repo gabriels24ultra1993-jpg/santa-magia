@@ -60,6 +60,26 @@ import { loadAnonymousTrends } from './utils/trendAnalytics';
 
 const INITIAL_SAMPLE_LIKES = [42, 35, 29, 21];
 
+const ADSTERRA_BANNER_SRCDOC = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style>
+  </head>
+  <body>
+    <script>
+      atOptions = {
+        'key' : '28a701f5606fc6c4953aae6c4f8f1cb9',
+        'format' : 'iframe',
+        'height' : 50,
+        'width' : 320,
+        'params' : {}
+      };
+    </script>
+    <script src="https://bicea.org/22/28a701f5606fc6c4953aae6c4f8f1cb9"></script>
+  </body>
+</html>`;
+
 const STORAGE_KEYS = {
   lang: 'santa_magia_lang_v1',
   points: 'santa_magia_points_v1',
@@ -776,18 +796,23 @@ export default function App() {
       </header>
       )}
 
-      {/* Top Responsive Google AdSense / Monetag Slot (Hidden in Fullscreen Game & VIP Zone) */}
+      {/* Top Adsterra 320x50 Slot (Hidden in Fullscreen Game & VIP Zone) */}
       {activeWindow !== 'sleighGame' && !hasMagicPass && (
-        <div className="relative z-10 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-3">
+        <div className="relative z-10 w-full flex justify-center px-2 pt-3">
           <div
             id="ad-banner-top"
             data-ad-slot="banner-top"
-            data-ad-network="adsense-monetag-ready"
-            className="w-full min-h-[60px] sm:min-h-[90px] rounded-xl bg-[#130e1c]/80 border border-dashed border-amber-300/20 flex items-center justify-center px-3 py-2 text-center overflow-hidden"
+            data-ad-network="adsterra"
+            className="w-[320px] h-[50px] mx-auto flex items-center justify-center overflow-hidden rounded-lg"
           >
-            <span className="text-[10px] sm:text-xs font-semibold tracking-widest uppercase text-amber-200/45 select-none">
-              {t.adSlotPlaceholder}
-            </span>
+            <iframe
+              title="Adsterra Top Banner"
+              srcDoc={ADSTERRA_BANNER_SRCDOC}
+              width={320}
+              height={50}
+              scrolling="no"
+              className="w-[320px] h-[50px] border-0 overflow-hidden block"
+            />
           </div>
         </div>
       )}
@@ -902,18 +927,23 @@ export default function App() {
       </main>
       )}
 
-      {/* Bottom Responsive Google AdSense / Monetag Slot (Hidden in Fullscreen Game & VIP Zone) */}
+      {/* Bottom Adsterra 320x50 Slot (Hidden in Fullscreen Game & VIP Zone) */}
       {activeWindow !== 'sleighGame' && !hasMagicPass && (
-        <div className="relative z-10 max-w-4xl w-full mx-auto px-4 sm:px-6 pb-4">
+        <div className="relative z-10 w-full flex justify-center px-2 pb-4">
           <div
             id="ad-banner-bottom"
             data-ad-slot="banner-bottom"
-            data-ad-network="adsense-monetag-ready"
-            className="w-full min-h-[60px] sm:min-h-[90px] rounded-xl bg-[#130e1c]/80 border border-dashed border-amber-300/20 flex items-center justify-center px-3 py-2 text-center overflow-hidden"
+            data-ad-network="adsterra"
+            className="w-[320px] h-[50px] mx-auto flex items-center justify-center overflow-hidden rounded-lg"
           >
-            <span className="text-[10px] sm:text-xs font-semibold tracking-widest uppercase text-amber-200/45 select-none">
-              {t.adSlotPlaceholder}
-            </span>
+            <iframe
+              title="Adsterra Bottom Banner"
+              srcDoc={ADSTERRA_BANNER_SRCDOC}
+              width={320}
+              height={50}
+              scrolling="no"
+              className="w-[320px] h-[50px] border-0 overflow-hidden block"
+            />
           </div>
         </div>
       )}
