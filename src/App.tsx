@@ -13,12 +13,18 @@ import {
 import { ChristmasElfNoteModal } from './components/ChristmasElfNote';
 import { LetterGenerator } from './components/LetterGenerator';
 import { PhotoWallSection, VideoParadeOverlay } from './components/PhotoWallAndParade';
+import {
+  OfflineIndicator,
+  PWAInstallBanner,
+  PWAInstallGuideModal,
+} from './components/PWAInstallBanner';
 import { CallPhase, SantaCallSimulator } from './components/SantaCallSimulator';
 import { MagicPassModal, PrivacyPolicyModal, ShareModal } from './components/ShareAndPassModals';
 import { SleighAdGateModal, SleighArcadeGame } from './components/SleighArcadeGame';
 import { SnowAndLights } from './components/SnowAndLights';
 import { TrendsIntelligenceModal } from './components/TrendsIntelligenceModal';
 import { WinnerHeroCover } from './components/WinnerHeroCover';
+import { usePWAInstall } from './hooks/usePWAInstall';
 import {
   detectBrowserLanguage,
   LANGUAGE_OPTIONS,
@@ -197,6 +203,26 @@ export default function App() {
   const [nowTick, setNowTick] = useState(() => new Date());
   const [trends, setTrends] = useState<AnonymousTrendRecord[]>(() => loadAnonymousTrends());
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
+
+  const {
+    isInstallable,
+    isInstalled,
+    isIOS,
+    shouldShowFloatingBanner,
+    isOnline,
+    install: triggerPWAInstall,
+    dismissForSession: dismissPWABanner,
+  } = usePWAInstall();
+
+  const handleDownloadAppClick = async () => {
+    audioEngine.playSleighBells('soft');
+    if (isInstallable) {
+      await triggerPWAInstall();
+      return;
+    }
+    setIsInstallGuideOpen(true);
+  };
 
   const titleTapRef = useRef<{ count: number; lastTap: number }>({ count: 0, lastTap: 0 });
   const keySequenceRef = useRef<string>('');
@@ -914,6 +940,17 @@ export default function App() {
             >
               {t.privacyPolicyLinkLabel}
             </button>
+            {!isInstalled && (
+              <button
+                type="button"
+                onClick={() => {
+                  void handleDownloadAppClick();
+                }}
+                className="px-2.5 py-1 rounded-lg bg-amber-400/15 hover:bg-amber-400/25 border border-amber-300/35 text-amber-200 font-semibold transition-colors"
+              >
+                {t.pwaFooterInstallBtn}
+              </button>
+            )}
             <button
               type="button"
               aria-label="Analytics Access"
@@ -1047,6 +1084,28 @@ export default function App() {
         t={t}
         isOpen={isPrivacyOpen}
         onClose={() => setIsPrivacyOpen(false)}
+      />
+
+      {/* PWA Offline Indicator, Bottom Mobile Floating Prompt & 2-Step Install Guide */}
+      <OfflineIndicator t={t} isOnline={isOnline} />
+      <PWAInstallBanner
+        t={t}
+        visible={
+          shouldShowFloatingBanner &&
+          activeWindow !== 'sleighGame' &&
+          !isCallOpen &&
+          !isParadeOpen
+        }
+        onDownloadClick={() => {
+          void handleDownloadAppClick();
+        }}
+        onContinueWeb={dismissPWABanner}
+      />
+      <PWAInstallGuideModal
+        t={t}
+        isOpen={isInstallGuideOpen}
+        isIOS={isIOS}
+        onClose={() => setIsInstallGuideOpen(false)}
       />
 
       {/* Non-intrusive Toast Notification */}
