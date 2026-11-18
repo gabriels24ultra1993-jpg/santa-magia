@@ -245,6 +245,22 @@ export interface TranslationPack {
   privacyPolicyLinkLabel: string;
   privacyPolicyModalTitle: string;
   privacyPolicySections: Array<{ title: string; body: string }>;
+  // PWA Install Prompt & Offline Indicator
+  pwaPromptTitle: string;
+  pwaDownloadBtn: string;
+  pwaContinueWebBtn: string;
+  pwaFooterInstallBtn: string;
+  pwaIosGuideTitle: string;
+  pwaIosStep1Title: string;
+  pwaIosStep1Desc: string;
+  pwaIosStep2Title: string;
+  pwaIosStep2Desc: string;
+  pwaBrowserGuideTitle: string;
+  pwaBrowserStep1Title: string;
+  pwaBrowserStep1Desc: string;
+  pwaBrowserStep2Title: string;
+  pwaBrowserStep2Desc: string;
+  pwaOfflineBadge: string;
   // Letter body & call builders
   buildLetterParagraphs: (params: {
     children: ChildEntry[];
@@ -517,6 +533,21 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationPack> = {
         body: 'SANTA MAGIA is a festive entertainment experience for families. Automated spam, harmful content, or attempts to tamper with votes or cloud storage are strictly prohibited.',
       },
     ],
+    pwaPromptTitle: 'Do you want to download SANTA MAGIA on your phone or continue in the browser?',
+    pwaDownloadBtn: '📲 Download App',
+    pwaContinueWebBtn: 'Continue on web',
+    pwaFooterInstallBtn: '📲 Download App',
+    pwaIosGuideTitle: 'Install SANTA MAGIA on iPhone / iPad',
+    pwaIosStep1Title: '1. Tap the Share button',
+    pwaIosStep1Desc: 'Look for the Share icon (square with an upward arrow) at the bottom bar of Safari.',
+    pwaIosStep2Title: '2. Tap "Add to Home Screen"',
+    pwaIosStep2Desc: 'Scroll down in the menu, tap "Add to Home Screen", then tap Add.',
+    pwaBrowserGuideTitle: 'Install SANTA MAGIA on your phone',
+    pwaBrowserStep1Title: '1. Open your browser menu',
+    pwaBrowserStep1Desc: 'Tap the browser menu button (⋮ or settings) in the top corner.',
+    pwaBrowserStep2Title: '2. Tap "Install app" or "Add to Home screen"',
+    pwaBrowserStep2Desc: 'Confirm to place the red & gold SANTA MAGIA icon on your home screen.',
+    pwaOfflineBadge: 'Offline Mode — Cached magic ready',
     formatDisplayNames: (children) => formatChildNames(children.map((c) => c.name), 'and', 'Oliver'),
     buildSalutation: (children) => `Dearest ${formatChildNames(children.map((c) => c.name), 'and', 'Oliver')},`,
     shareTextTemplate: (children) => {
@@ -815,6 +846,21 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationPack> = {
         body: 'SANTA MAGIA es una experiencia navideña de entretenimiento familiar. Queda prohibido el uso de scripts automatizados, spam, subida de material ajeno o manipulación de votos.',
       },
     ],
+    pwaPromptTitle: '¿Quieres descargar SANTA MAGIA en tu celular o seguir en el navegador?',
+    pwaDownloadBtn: '📲 Descargar App',
+    pwaContinueWebBtn: 'Seguir en la web',
+    pwaFooterInstallBtn: '📲 Descargar App',
+    pwaIosGuideTitle: 'Instalar SANTA MAGIA en iPhone / Safari',
+    pwaIosStep1Title: '1. Toca el botón Compartir',
+    pwaIosStep1Desc: 'Pulsa el ícono de Compartir (cuadrado con flecha hacia arriba) en la barra inferior de Safari.',
+    pwaIosStep2Title: '2. Pulsa "Agregar a inicio"',
+    pwaIosStep2Desc: 'Desliza hacia abajo, elige "Agregar a la pantalla de inicio" y confirma en Agregar.',
+    pwaBrowserGuideTitle: 'Instalar SANTA MAGIA en tu celular',
+    pwaBrowserStep1Title: '1. Abre el menú del navegador',
+    pwaBrowserStep1Desc: 'Toca los tres puntos (⋮) o el botón de opciones en la esquina superior de Chrome.',
+    pwaBrowserStep2Title: '2. Toca "Instalar aplicación"',
+    pwaBrowserStep2Desc: 'Elige "Instalar aplicación" o "Agregar a la pantalla principal" para tener el ícono rojo y dorado.',
+    pwaOfflineBadge: 'Modo sin conexión — Datos guardados activos',
     formatDisplayNames: (children) => formatChildNames(children.map((c) => c.name), 'y', 'Mateo'),
     buildSalutation: (children) => {
       const activeNames = children.map((c) => c.name.trim()).filter(Boolean);
@@ -1117,6 +1163,21 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationPack> = {
         body: 'Uso exclusivo para entretenimento natalino em família. Spam ou manipulação automatizada de votos são proibidos.',
       },
     ],
+    pwaPromptTitle: 'Quer baixar o SANTA MAGIA no seu celular ou continuar no navegador?',
+    pwaDownloadBtn: '📲 Baixar App',
+    pwaContinueWebBtn: 'Continuar na web',
+    pwaFooterInstallBtn: '📲 Baixar App',
+    pwaIosGuideTitle: 'Instalar SANTA MAGIA no iPhone / Safari',
+    pwaIosStep1Title: '1. Toque no botão Compartilhar',
+    pwaIosStep1Desc: 'Toque no ícone de Compartilhar (quadrado com seta para cima) na barra inferior do Safari.',
+    pwaIosStep2Title: '2. Toque em "Adicionar à Tela de Início"',
+    pwaIosStep2Desc: 'Role para baixo, selecione "Adicionar à Tela de Início" e toque em Adicionar.',
+    pwaBrowserGuideTitle: 'Instalar SANTA MAGIA no seu celular',
+    pwaBrowserStep1Title: '1. Abra o menu do navegador',
+    pwaBrowserStep1Desc: 'Toque no botão de menu (⋮) no canto superior do Chrome.',
+    pwaBrowserStep2Title: '2. Toque em "Instalar aplicativo"',
+    pwaBrowserStep2Desc: 'Confirme para adicionar o ícone vermelho e dourado do SANTA MAGIA à sua tela inicial.',
+    pwaOfflineBadge: 'Modo offline — Conteúdo em cache ativo',
     formatDisplayNames: (children) => formatChildNames(children.map((c) => c.name), 'e', 'Gabriel'),
     buildSalutation: (children) => {
       const isPlural = children.map((c) => c.name.trim()).filter(Boolean).length > 1;
@@ -1400,6 +1461,21 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationPack> = {
         body: 'Service réservé au divertissement familial de Noël. Tout spam ou tentative de fraude aux votes est interdit.',
       },
     ],
+    pwaPromptTitle: 'Voulez-vous télécharger SANTA MAGIA sur votre téléphone ou continuer dans le navigateur ?',
+    pwaDownloadBtn: '📲 Télécharger l’App',
+    pwaContinueWebBtn: 'Continuer sur le web',
+    pwaFooterInstallBtn: '📲 Télécharger l’App',
+    pwaIosGuideTitle: 'Installer SANTA MAGIA sur iPhone / Safari',
+    pwaIosStep1Title: '1. Touchez le bouton Partager',
+    pwaIosStep1Desc: 'Appuyez sur l’icône Partager (carré avec flèche vers le haut) dans la barre Safari.',
+    pwaIosStep2Title: '2. Touchez « Sur l’écran d’accueil »',
+    pwaIosStep2Desc: 'Faites défiler vers le bas, choisissez « Sur l’écran d’accueil » puis Ajouter.',
+    pwaBrowserGuideTitle: 'Installer SANTA MAGIA sur votre mobile',
+    pwaBrowserStep1Title: '1. Ouvrez le menu du navigateur',
+    pwaBrowserStep1Desc: 'Appuyez sur les trois points (⋮) en haut de votre navigateur Chrome.',
+    pwaBrowserStep2Title: '2. Touchez « Installer l’application »',
+    pwaBrowserStep2Desc: 'Confirmez pour ajouter l’icône rouge et or SANTA MAGIA sur votre écran d’accueil.',
+    pwaOfflineBadge: 'Mode hors ligne — Données en cache actives',
     formatDisplayNames: (children) => formatChildNames(children.map((c) => c.name), 'et', 'Léo'),
     buildSalutation: (children) => {
       const isPlural = children.map((c) => c.name.trim()).filter(Boolean).length > 1;
@@ -1683,6 +1759,21 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationPack> = {
         body: 'Reines Familien-Unterhaltungsangebot. Spam oder Manipulation von Abstimmungen sind untersagt.',
       },
     ],
+    pwaPromptTitle: 'Möchtest du SANTA MAGIA auf dein Handy herunterladen oder im Browser fortfahren?',
+    pwaDownloadBtn: '📲 App herunterladen',
+    pwaContinueWebBtn: 'Im Browser bleiben',
+    pwaFooterInstallBtn: '📲 App herunterladen',
+    pwaIosGuideTitle: 'SANTA MAGIA auf iPhone / Safari installieren',
+    pwaIosStep1Title: '1. Auf „Teilen“ tippen',
+    pwaIosStep1Desc: 'Tippe unten in Safari auf das Teilen-Symbol (Quadrat mit Pfeil nach oben).',
+    pwaIosStep2Title: '2. „Zum Home-Bildschirm“ wählen',
+    pwaIosStep2Desc: 'Scrolle nach unten, tippe auf „Zum Home-Bildschirm“ und dann auf Hinzufügen.',
+    pwaBrowserGuideTitle: 'SANTA MAGIA auf dem Handy installieren',
+    pwaBrowserStep1Title: '1. Browser-Menü öffnen',
+    pwaBrowserStep1Desc: 'Tippe oben rechts im Chrome-Menü auf die drei Punkte (⋮).',
+    pwaBrowserStep2Title: '2. „App installieren“ antippen',
+    pwaBrowserStep2Desc: 'Bestätige, um das rot-goldene SANTA MAGIA Symbol auf deinem Startbildschirm abzulegen.',
+    pwaOfflineBadge: 'Offline-Modus — Zwischengespeicherte Daten aktiv',
     formatDisplayNames: (children) => formatChildNames(children.map((c) => c.name), 'und', 'Lukas'),
     buildSalutation: (children) => {
       const isPlural = children.map((c) => c.name.trim()).filter(Boolean).length > 1;
@@ -1966,6 +2057,21 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationPack> = {
         body: 'Esperienza natalizia per famiglie. È vietato lo spam o l’alterazione automatizzata dei voti.',
       },
     ],
+    pwaPromptTitle: 'Vuoi scaricare SANTA MAGIA sul tuo cellulare o continuare nel browser?',
+    pwaDownloadBtn: '📲 Scarica App',
+    pwaContinueWebBtn: 'Continua sul web',
+    pwaFooterInstallBtn: '📲 Scarica App',
+    pwaIosGuideTitle: 'Installa SANTA MAGIA su iPhone / Safari',
+    pwaIosStep1Title: '1. Tocca il pulsante Condividi',
+    pwaIosStep1Desc: 'Premi l’icona Condividi (quadrato con freccia verso l’alto) nella barra di Safari.',
+    pwaIosStep2Title: '2. Tocca "Aggiungi alla schermata Home"',
+    pwaIosStep2Desc: 'Scorri verso il basso, scegli "Aggiungi alla schermata Home" e poi Aggiungi.',
+    pwaBrowserGuideTitle: 'Installa SANTA MAGIA sul telefono',
+    pwaBrowserStep1Title: '1. Apri il menu del browser',
+    pwaBrowserStep1Desc: 'Tocca i tre puntini (⋮) in alto a destra su Chrome.',
+    pwaBrowserStep2Title: '2. Tocca "Installa app"',
+    pwaBrowserStep2Desc: 'Conferma per avere l’icona rossa e oro di SANTA MAGIA sulla schermata Home.',
+    pwaOfflineBadge: 'Modalità offline — Dati in cache attivi',
     formatDisplayNames: (children) => formatChildNames(children.map((c) => c.name), 'e', 'Lorenzo'),
     buildSalutation: (children) => {
       const isPlural = children.map((c) => c.name.trim()).filter(Boolean).length > 1;
@@ -2249,6 +2355,21 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationPack> = {
         body: 'Семейное праздничное приложение. Спам и накрутка голосов запрещены.',
       },
     ],
+    pwaPromptTitle: 'Хотите скачать SANTA MAGIA на телефон или продолжить в браузере?',
+    pwaDownloadBtn: '📲 Скачать приложение',
+    pwaContinueWebBtn: 'Остаться в браузере',
+    pwaFooterInstallBtn: '📲 Скачать приложение',
+    pwaIosGuideTitle: 'Установить SANTA MAGIA на iPhone / Safari',
+    pwaIosStep1Title: '1. Нажмите «Поделиться»',
+    pwaIosStep1Desc: 'Нажмите на значок «Поделиться» (квадрат со стрелкой вверх) на нижней панели Safari.',
+    pwaIosStep2Title: '2. Выберите «На экран „Домой“»',
+    pwaIosStep2Desc: 'Прокрутите вниз, выберите «На экран „Домой“» и нажмите «Добавить».',
+    pwaBrowserGuideTitle: 'Установить SANTA MAGIA на смартфон',
+    pwaBrowserStep1Title: '1. Откройте меню браузера',
+    pwaBrowserStep1Desc: 'Нажмите на три точки (⋮) в верхнем углу Chrome.',
+    pwaBrowserStep2Title: '2. Нажмите «Установить приложение»',
+    pwaBrowserStep2Desc: 'Подтвердите установку красно-золотой иконки SANTA MAGIA на главный экран.',
+    pwaOfflineBadge: 'Офлайн-режим — используются сохранённые данные',
     formatDisplayNames: (children) => formatChildNames(children.map((c) => c.name), 'и', 'Артём'),
     buildSalutation: (children) => {
       const isPlural = children.map((c) => c.name.trim()).filter(Boolean).length > 1;
@@ -2532,6 +2653,21 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationPack> = {
         body: 'ご家族向けのクリスマス娯楽サービスです。スパム行為や不正投票は禁止されています。',
       },
     ],
+    pwaPromptTitle: 'SANTA MAGIAをスマホにダウンロードしますか？それともブラウザで続けますか？',
+    pwaDownloadBtn: '📲 アプリをダウンロード',
+    pwaContinueWebBtn: 'Webで続ける',
+    pwaFooterInstallBtn: '📲 アプリをダウンロード',
+    pwaIosGuideTitle: 'iPhone / SafariにSANTA MAGIAをインストール',
+    pwaIosStep1Title: '1. 共有ボタンをタップ',
+    pwaIosStep1Desc: 'Safari下部バーの共有アイコン（上向き矢印の四角）をタップします。',
+    pwaIosStep2Title: '2. 「ホーム画面に追加」をタップ',
+    pwaIosStep2Desc: '下にスクロールして「ホーム画面に追加」を選び、「追加」をタップします。',
+    pwaBrowserGuideTitle: 'スマホにSANTA MAGIAをインストール',
+    pwaBrowserStep1Title: '1. ブラウザメニューを開く',
+    pwaBrowserStep1Desc: 'Chrome右上のメニューボタン（⋮）をタップします。',
+    pwaBrowserStep2Title: '2. 「アプリをインストール」をタップ',
+    pwaBrowserStep2Desc: '確認すると赤と金のSANTA MAGIAアイコンがホーム画面に追加されます。',
+    pwaOfflineBadge: 'オフラインモード — キャッシュデータを表示中',
     formatDisplayNames: (children) => formatChildNames(children.map((c) => c.name), '・', 'はると', '・'),
     buildSalutation: (children) => `${formatChildNames(children.map((c) => c.name), '・', 'はると', '・')} さんへ、`,
     shareTextTemplate: (children) => `🎄✨ ${formatChildNames(children.map((c) => c.name), '・', 'お子さま', '・')}へのサンタ公式手紙と魔法の電話！ 🎅📞`,
@@ -2796,6 +2932,21 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationPack> = {
         body: '가족을 위한 크리스마스 엔터테인먼트 서비스입니다. 스팸 및 투표 조작은 금지됩니다.',
       },
     ],
+    pwaPromptTitle: 'SANTA MAGIA 앱을 휴대폰에 다운로드하시겠어요, 아니면 브라우저에서 계속하시겠어요?',
+    pwaDownloadBtn: '📲 앱 다운로드',
+    pwaContinueWebBtn: '웹에서 계속하기',
+    pwaFooterInstallBtn: '📲 앱 다운로드',
+    pwaIosGuideTitle: 'iPhone / Safari에 SANTA MAGIA 설치하기',
+    pwaIosStep1Title: '1. 공유 버튼 누르기',
+    pwaIosStep1Desc: 'Safari 하단 막대의 공유 아이콘(위쪽 화살표가 있는 사각형)을 누르세요.',
+    pwaIosStep2Title: '2. "홈 화면에 추가" 선택',
+    pwaIosStep2Desc: '아래로 스크롤하여 "홈 화면에 추가"를 누른 뒤 추가를 선택하세요.',
+    pwaBrowserGuideTitle: '휴대폰에 SANTA MAGIA 설치하기',
+    pwaBrowserStep1Title: '1. 브라우저 메뉴 열기',
+    pwaBrowserStep1Desc: 'Chrome 오른쪽 상단의 메뉴 아이콘(⋮)을 누르세요.',
+    pwaBrowserStep2Title: '2. "앱 설치" 누르기',
+    pwaBrowserStep2Desc: '확인하면 빨강·금색 SANTA MAGIA 아이콘이 홈 화면에 추가됩니다.',
+    pwaOfflineBadge: '오프라인 모드 — 저장된 데이터 사용 중',
     formatDisplayNames: (children) => formatChildNames(children.map((c) => c.name), '그리고', '민준'),
     buildSalutation: (children) => `${formatChildNames(children.map((c) => c.name), ', ', '민준', ', ')} 어린이에게,`,
     shareTextTemplate: (children) => `🎄✨ ${formatChildNames(children.map((c) => c.name), ', ', '아이들', ', ')}을 위한 산타 공식 편지와 마법 전화! 🎅📞`,
@@ -3060,6 +3211,21 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationPack> = {
         body: 'تطبيق ترفيهي عائلي لموسم الأعياد. يُمنع الإرسال العشوائي أو التلاعب بالأصوات.',
       },
     ],
+    pwaPromptTitle: 'هل تريد تنزيل تطبيق SANTA MAGIA على هاتفك أم المتابعة في المتصفح؟',
+    pwaDownloadBtn: '📲 تنزيل التطبيق',
+    pwaContinueWebBtn: 'المتابعة على الويب',
+    pwaFooterInstallBtn: '📲 تنزيل التطبيق',
+    pwaIosGuideTitle: 'تثبيت SANTA MAGIA على iPhone / Safari',
+    pwaIosStep1Title: '1. اضغط على زر المشاركة',
+    pwaIosStep1Desc: 'اضغط على أيقونة المشاركة (مربع بسهم للأعلى) في شريط متصفح Safari السفلي.',
+    pwaIosStep2Title: '2. اختر "إضافة إلى الشاشة الرئيسية"',
+    pwaIosStep2Desc: 'مرر للأسفل، واضغط على "إضافة إلى الشاشة الرئيسية" ثم اضغط إضافة.',
+    pwaBrowserGuideTitle: 'تثبيت SANTA MAGIA على هاتفك',
+    pwaBrowserStep1Title: '1. افتح قائمة المتصفح',
+    pwaBrowserStep1Desc: 'اضغط على النقاط الثلاث (⋮) في الزاوية العلوية في متصفح Chrome.',
+    pwaBrowserStep2Title: '2. اضغط على "تثبيت التطبيق"',
+    pwaBrowserStep2Desc: 'قم بالتأكيد لإضافة أيقونة SANTA MAGIA الحمراء والذهبية إلى شاشتك الرئيسية.',
+    pwaOfflineBadge: 'وضع عدم الاتصال — استخدام البيانات المخزنة',
     formatDisplayNames: (children) => formatChildNames(children.map((c) => c.name), 'و', 'آدم'),
     buildSalutation: (children) => {
       const isPlural = children.map((c) => c.name.trim()).filter(Boolean).length > 1;
