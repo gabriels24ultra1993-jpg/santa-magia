@@ -11,10 +11,9 @@ import {
 } from 'lucide-react';
 import { TranslationPack } from '../i18n/translations';
 import { BehaviorType, LetterData } from '../types';
-import santaPortraitImg from '../assets/images/santa_call_portrait_1794938715921.jpg';
+import santaCallImg from '../assets/images/santa-call.jpg';
 import { audioEngine } from '../utils/audioEngine';
 
-const SANTA_PORTRAIT_URL = santaPortraitImg;
 const COUNTDOWN_SECONDS = 30;
 const RING_TIMEOUT_MS = 15000;
 
@@ -65,7 +64,6 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
   const [countdownSec, setCountdownSec] = useState<number>(COUNTDOWN_SECONDS);
   const [seconds, setSeconds] = useState(0);
   const [speaking, setSpeaking] = useState(false);
-  const [imgError, setImgError] = useState(false);
 
   const callTimerRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
@@ -295,19 +293,12 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
           {/* Santa Preview Card */}
           <div className="lg:col-span-5 bg-[#17121f]/95 border border-amber-200/15 rounded-2xl p-6 flex flex-col items-center justify-center text-center space-y-4">
             <div className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-full overflow-hidden border-4 border-amber-400/70 shadow-xl bg-red-950 flex items-center justify-center">
-              {!imgError ? (
-                <img
-                  src={SANTA_PORTRAIT_URL}
-                  alt={t.callCallerSanta}
-                  referrerPolicy="no-referrer"
-                  onError={() => setImgError(true)}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-6xl" role="img" aria-label={t.callCallerSanta}>
-                  🎅
-                </span>
-              )}
+              <img
+                src={santaCallImg}
+                alt={t.callCallerSanta}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover rounded-full"
+              />
             </div>
             <div className="space-y-1">
               <h3 className="font-display text-xl font-bold text-amber-50">
@@ -561,19 +552,12 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
                       speaking ? 'border-emerald-400 scale-[1.03]' : 'border-amber-300/80'
                     }`}
                   >
-                    {!imgError ? (
-                      <img
-                        src={SANTA_PORTRAIT_URL}
-                        alt={t.callCallerSanta}
-                        referrerPolicy="no-referrer"
-                        onError={() => setImgError(true)}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-7xl" role="img" aria-label={t.callCallerSanta}>
-                        🎅
-                      </span>
-                    )}
+                    <img
+                      src={santaCallImg}
+                      alt={t.callCallerSanta}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover rounded-full"
+                    />
                   </div>
                 </div>
 
