@@ -377,6 +377,31 @@ export default function App() {
     }
   }, [isMusicEnabled, isMuted, isParadeOpen, callPhase]);
 
+  // Global lifecycle cutoff: stop all music, call audio & bells when minimizing, switching apps or closing
+  useEffect(() => {
+    const stopEverythingOnExit = () => {
+      audioEngine.stopAll();
+      setIsMusicEnabled(false);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopEverythingOnExit();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', stopEverythingOnExit);
+    window.addEventListener('beforeunload', stopEverythingOnExit);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', stopEverythingOnExit);
+      window.removeEventListener('beforeunload', stopEverythingOnExit);
+      audioEngine.stopAll();
+    };
+  }, []);
+
   // Persist language & RTL direction
   useEffect(() => {
     try {
@@ -911,6 +936,7 @@ export default function App() {
             <div id="section-call" className="scroll-mt-20">
               <SantaCallSimulator
                 t={t}
+                lang={lang}
                 letter={letter}
                 onChangeLetter={setLetter}
                 isOpen={isCallOpen}
