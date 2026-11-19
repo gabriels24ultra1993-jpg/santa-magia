@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Loader2,
   Phone,
   PhoneMissed,
   PhoneOff,
@@ -10,7 +11,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { TranslationPack } from '../i18n/translations';
-import { BehaviorType, LetterData } from '../types';
+import { BehaviorType, LanguageCode, LetterData } from '../types';
 import santaCallImg from '../assets/images/santa-call.jpg';
 import { audioEngine } from '../utils/audioEngine';
 
@@ -21,6 +22,7 @@ export type CallPhase = 'countdown' | 'ringing' | 'connected' | 'missed';
 
 interface SantaCallSimulatorProps {
   t: TranslationPack;
+  lang: LanguageCode;
   letter: LetterData;
   onChangeLetter: (updated: LetterData) => void;
   isOpen: boolean;
@@ -52,6 +54,7 @@ function stopVibration(): void {
 
 export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
   t,
+  lang,
   letter,
   onChangeLetter,
   isOpen,
@@ -64,15 +67,24 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
   const [countdownSec, setCountdownSec] = useState<number>(COUNTDOWN_SECONDS);
   const [seconds, setSeconds] = useState(0);
   const [speaking, setSpeaking] = useState(false);
+  const [loadingVoice, setLoadingVoice] = useState(false);
+  const [voiceError, setVoiceError] = useState(false);
 
   const callTimerRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const ringTimeoutRef = useRef<number | null>(null);
   const vibrateIntervalRef = useRef<number | null>(null);
+  const inFlightPregenRef = useRef<{
+    key: string;
+    controller: AbortController;
+    promise: Promise<Blob>;
+  } | null>(null);
+  const ttsCacheRef = useRef<{ key: string; blob: Blob } | null>(null);
 
   const scriptText = t.buildSantaCallScript({
     children: letter.children,
   });
+  const cacheKey = `${lang}::${scriptText}`;
 
   const clearAllTimers = useCallback(() => {
     if (callTimerRef.current !== null) {
@@ -93,36 +105,125 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
     }
   }, []);
 
-  const speakSantaGreeting = () => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(scriptText);
-      utterance.lang = t.callVoiceLang;
-      utterance.pitch = 0.82;
-      utterance.rate = 0.94;
-      utterance.volume = 1;
+  const abortPregen = useCallback(() => {
+    if (inFlightPregenRef.current) {
+      inFlightPregenRef.current.controller.abort();
+      inFlightPregenRef.current = null;
+    }
+  }, []);
 
-      const voices = window.speechSynthesis.getVoices();
-      const langPrefix = t.callVoiceLang.slice(0, 2).toLowerCase();
-      const preferred =
-        voices.find(
-          (v) =>
-            v.lang.toLowerCase().startsWith(langPrefix) &&
-            /male|jorge|pablo|daniel|thomas|luca|hans|david/i.test(v.name)
-        ) || voices.find((v) => v.lang.toLowerCase().startsWith(langPrefix));
-      if (preferred) {
-        utterance.voice = preferred;
+  const stopVoicePlayback = useCallback(() => {
+    abortPregen();
+    audioEngine.stopSantaTtsAudio();
+    setLoadingVoice(false);
+    setSpeaking(false);
+  }, [abortPregen]);
+
+  const ensureSantaVoiceBlob = useCallback(
+    (forceRefresh = false): Promise<Blob> => {
+      if (!forceRefresh && ttsCacheRef.current?.key === cacheKey) {
+        return Promise.resolve(ttsCacheRef.current.blob);
       }
 
-      utterance.onstart = () => setSpeaking(true);
-      utterance.onend = () => setSpeaking(false);
-      utterance.onerror = () => setSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    } catch {
+      if (!forceRefresh && inFlightPregenRef.current?.key === cacheKey) {
+        return inFlightPregenRef.current.promise;
+      }
+
+      abortPregen();
+
+      const controller = new AbortController();
+      const requestPromise = (async () => {
+        const response = await fetch('/api/santa-tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ script: scriptText, lang }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const errPayload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(errPayload?.error || `TTS HTTP ${response.status}`);
+        }
+
+        const data = (await response.json()) as { audioBase64?: string; mimeType?: string };
+        if (!data.audioBase64) {
+          throw new Error('No audio returned by server');
+        }
+
+        const wavBlob = audioEngine.createSantaWavBlob(data.audioBase64, data.mimeType || 'audio/wav');
+        if (!controller.signal.aborted) {
+          ttsCacheRef.current = { key: cacheKey, blob: wavBlob };
+        }
+        return wavBlob;
+      })().finally(() => {
+        if (inFlightPregenRef.current?.controller === controller) {
+          inFlightPregenRef.current = null;
+        }
+      });
+
+      inFlightPregenRef.current = {
+        key: cacheKey,
+        controller,
+        promise: requestPromise,
+      };
+
+      return requestPromise;
+    },
+    [abortPregen, cacheKey, lang, scriptText]
+  );
+
+  const playReadyWavBlob = useCallback((wavBlob: Blob) => {
+    setLoadingVoice(false);
+    setVoiceError(false);
+    audioEngine.playSantaTtsBlob(wavBlob, {
+      onStart: () => {
+        setSpeaking(true);
+        setVoiceError(false);
+      },
+      onEnd: () => {
+        setSpeaking(false);
+      },
+      onError: () => {
+        setSpeaking(false);
+        setVoiceError(true);
+      },
+    });
+  }, []);
+
+  const playSantaVoice = useCallback(
+    async (forceRefresh = false) => {
+      setVoiceError(false);
+
+      if (!forceRefresh && ttsCacheRef.current?.key === cacheKey) {
+        playReadyWavBlob(ttsCacheRef.current.blob);
+        return;
+      }
+
+      setLoadingVoice(true);
+      try {
+        const wavBlob = await ensureSantaVoiceBlob(forceRefresh);
+        playReadyWavBlob(wavBlob);
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          setLoadingVoice(false);
+          return;
+        }
+        setLoadingVoice(false);
+        setSpeaking(false);
+        setVoiceError(true);
+      }
+    },
+    [cacheKey, ensureSantaVoiceBlob, playReadyWavBlob]
+  );
+
+  // Stop any pending TTS request/playback immediately when global lifecycle triggers stopAll()
+  useEffect(() => {
+    return audioEngine.subscribeStopAll(() => {
+      abortPregen();
+      setLoadingVoice(false);
       setSpeaking(false);
-    }
-  };
+    });
+  }, [abortPregen]);
 
   // Notify parent whenever call phase changes (so ambient music pauses during ringing/connected)
   useEffect(() => {
@@ -135,11 +236,9 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
       audioEngine.stopRingtone();
       stopVibration();
       clearAllTimers();
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopVoicePlayback();
+      setVoiceError(false);
       setSeconds(0);
-      setSpeaking(false);
       setCountdownSec(COUNTDOWN_SECONDS);
       setCallState(initialMode);
       return;
@@ -147,6 +246,8 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
 
     setSeconds(0);
     setSpeaking(false);
+    setLoadingVoice(false);
+    setVoiceError(false);
     setCountdownSec(COUNTDOWN_SECONDS);
     setCallState(initialMode);
 
@@ -154,13 +255,11 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
       audioEngine.stopRingtone();
       stopVibration();
       clearAllTimers();
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopVoicePlayback();
     };
-  }, [isOpen, initialMode, clearAllTimers]);
+  }, [isOpen, initialMode, clearAllTimers, stopVoicePlayback]);
 
-  // Drive Countdown (30s -> 0s) and Ringing (vibration + ringtone + 15s missed call timeout)
+  // Drive Countdown (30s -> 0s) and Ringing (vibration + ringtone + TTS pre-generation + 15s missed call timeout)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -196,9 +295,13 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
         triggerCallVibration();
       }, 2400);
 
+      // Pre-generate Santa's Gemini TTS voice in the background as soon as ringing starts
+      void ensureSantaVoiceBlob(false).catch(() => {});
+
       ringTimeoutRef.current = window.setTimeout(() => {
         audioEngine.stopRingtone();
         stopVibration();
+        abortPregen();
         if (vibrateIntervalRef.current !== null) {
           clearInterval(vibrateIntervalRef.current);
           vibrateIntervalRef.current = null;
@@ -219,7 +322,7 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
         }
       };
     }
-  }, [isOpen, callState]);
+  }, [isOpen, callState, abortPregen, ensureSantaVoiceBlob]);
 
   const handleCallNow = () => {
     audioEngine.playSleighBells('soft');
@@ -240,15 +343,14 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
       clearInterval(vibrateIntervalRef.current);
       vibrateIntervalRef.current = null;
     }
+    audioEngine.stopRingtone();
     stopVibration();
     setCallState('connected');
-    audioEngine.playSantaAnswerBurst();
+    audioEngine.playSleighBells('soft');
     callTimerRef.current = window.setInterval(() => {
       setSeconds((prev) => prev + 1);
     }, 1000);
-    window.setTimeout(() => {
-      speakSantaGreeting();
-    }, 450);
+    void playSantaVoice(false);
   };
 
   const handleRetryCountdown = () => {
@@ -261,10 +363,8 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
     audioEngine.stopRingtone();
     stopVibration();
     clearAllTimers();
+    stopVoicePlayback();
     audioEngine.playSleighBells('soft');
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
     onCloseCall();
   };
 
@@ -562,18 +662,30 @@ export const SantaCallSimulator: React.FC<SantaCallSimulatorProps> = ({
                 </div>
 
                 {callState === 'connected' && (
-                  <div className="mt-7 flex flex-col items-center gap-3">
-                    <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-emerald-300">
-                      <Volume2 className={`w-4 h-4 ${speaking ? 'animate-pulse' : ''}`} />
-                      <span>{t.callVoicePlayingNote}</span>
-                    </div>
+                  <div className="mt-7 flex flex-col items-center gap-3 text-center max-w-xs">
+                    {loadingVoice ? (
+                      <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-amber-300">
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                        <span>{t.callVoiceLoadingNote}</span>
+                      </div>
+                    ) : voiceError ? (
+                      <div className="text-xs sm:text-sm font-medium text-amber-200/90">
+                        <span>{t.callVoiceErrorNote}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-emerald-300">
+                        <Volume2 className={`w-4 h-4 ${speaking ? 'animate-pulse' : ''}`} />
+                        <span>{t.callVoicePlayingNote}</span>
+                      </div>
+                    )}
                     <button
                       type="button"
+                      disabled={loadingVoice}
                       onClick={() => {
                         audioEngine.playSleighBells('soft');
-                        speakSantaGreeting();
+                        void playSantaVoice(false);
                       }}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-200 hover:text-white px-4 py-2 rounded-xl bg-white/10 border border-white/15"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-200 hover:text-white disabled:opacity-50 px-4 py-2 rounded-xl bg-white/10 border border-white/15"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>{t.callReplayVoiceBtn}</span>
