@@ -10,6 +10,18 @@ class HolidayAudioEngine {
   private ambientTimeout: number | null = null;
   private ambientRunning: boolean = false;
   private ambientNoteIdx: number = 0;
+  private santaAudio: HTMLAudioElement | null = null;
+  private santaAudioUrl: string | null = null;
+  private callSleighBedTimeout: number | null = null;
+  private callSleighBedRunning: boolean = false;
+  private stopListeners: Set<() => void> = new Set();
+
+  public subscribeStopAll(cb: () => void): () => void {
+    this.stopListeners.add(cb);
+    return () => {
+      this.stopListeners.delete(cb);
+    };
+  }
 
   private getContext(): AudioContext | null {
     if (this.muted) return null;
@@ -31,6 +43,8 @@ class HolidayAudioEngine {
       this.stopRingtone();
       this.stopParadeMusic();
       this.stopAmbientMusic();
+      this.stopCallSleighBellsBed();
+      this.stopSantaTtsAudio();
     }
   }
 
@@ -185,6 +199,253 @@ class HolidayAudioEngine {
     // Warm cheerful fanfare chord
     [392.0, 493.88, 587.33, 783.99].forEach((freq, i) => {
       this.playBellNote(freq, now + 0.08 + i * 0.06, 0.55, 0.065);
+    });
+  }
+
+  // Gentle ambient sleigh-bells shimmer loop while Santa speaks
+  public startCallSleighBellsBed(): void {
+    this.stopCallSleighBellsBed();
+    if (this.muted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    this.callSleighBedRunning = true;
+
+    const triggerSoftJingle = () => {
+      if (!this.callSleighBedRunning || this.muted) return;
+      const c = this.getContext();
+      if (!c) return;
+      const now = c.currentTime;
+      const shimmerFreqs = [2637, 3136, 3520, 4186];
+      shimmerFreqs.forEach((freq, idx) => {
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq + (Math.random() * 14 - 7), now + idx * 0.045);
+        gain.gain.setValueAtTime(0.0001, now + idx * 0.045);
+        gain.gain.exponentialRampToValueAtTime(0.012, now + idx * 0.045 + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.045 + 0.42);
+        osc.connect(gain);
+        gain.connect(c.destination);
+        osc.start(now + idx * 0.045);
+        osc.stop(now + idx * 0.045 + 0.45);
+      });
+
+      this.callSleighBedTimeout = window.setTimeout(triggerSoftJingle, 1850);
+    };
+
+    triggerSoftJingle();
+  }
+
+  public stopCallSleighBellsBed(): void {
+    this.callSleighBedRunning = false;
+    if (this.callSleighBedTimeout !== null) {
+      clearTimeout(this.callSleighBedTimeout);
+      this.callSleighBedTimeout = null;
+    }
+  }
+
+  public stopSantaTtsAudio(): void {
+    this.stopCallSleighBellsBed();
+    if (this.santaAudio) {
+      try {
+        this.santaAudio.onplay = null;
+        this.santaAudio.onended = null;
+        this.santaAudio.onerror = null;
+        this.santaAudio.pause();
+        this.santaAudio.currentTime = 0;
+        this.santaAudio.src = '';
+      } catch {
+        // ignore cleanup errors
+      }
+      this.santaAudio = null;
+    }
+    if (this.santaAudioUrl) {
+      try {
+        URL.revokeObjectURL(this.santaAudioUrl);
+      } catch {
+        // ignore
+      }
+      this.santaAudioUrl = null;
+    }
+  }
+
+  public createSantaWavBlob(rawBase64: string, mimeType?: string): Blob {
+    const binary = atob(rawBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    // Already RIFF/WAVE
+    if (
+      bytes.length >= 12 &&
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46
+    ) {
+      return new Blob([bytes], { type: 'audio/wav' });
+    }
+
+    const rateMatch = mimeType ? /rate=(\d+)/i.exec(mimeType) : null;
+    const sampleRate = rateMatch
+      ? Math.max(8000, Math.min(48000, Number(rateMatch[1])))
+      : 24000;
+    const channels = 1;
+    const bitsPerSample = 16;
+    const byteRate = (sampleRate * channels * bitsPerSample) / 8;
+    const blockAlign = (channels * bitsPerSample) / 8;
+
+    const wavBuffer = new ArrayBuffer(44 + bytes.byteLength);
+    const view = new DataView(wavBuffer);
+    const writeAscii = (offset: number, text: string) => {
+      for (let i = 0; i < text.length; i += 1) {
+        view.setUint8(offset + i, text.charCodeAt(i));
+      }
+    };
+
+    writeAscii(0, 'RIFF');
+    view.setUint32(4, 36 + bytes.byteLength, true);
+    writeAscii(8, 'WAVE');
+    writeAscii(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, channels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+    writeAscii(36, 'data');
+    view.setUint32(40, bytes.byteLength, true);
+
+    new Uint8Array(wavBuffer, 44).set(bytes);
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+  }
+
+  public playSantaTtsBlob(
+    wavBlob: Blob,
+    callbacks?: {
+      onStart?: () => void;
+      onEnd?: () => void;
+      onError?: () => void;
+    }
+  ): void {
+    this.stopSantaTtsAudio();
+    this.stopAmbientMusic();
+
+    if (this.muted) {
+      callbacks?.onEnd?.();
+      return;
+    }
+
+    try {
+      const url = URL.createObjectURL(wavBlob);
+      const audio = new Audio(url) as HTMLAudioElement & {
+        mozPreservesPitch?: boolean;
+        webkitPreservesPitch?: boolean;
+      };
+
+      const applySeniorSantaRate = () => {
+        audio.defaultPlaybackRate = 0.89;
+        audio.playbackRate = 0.89;
+        audio.preservesPitch = false;
+        audio.mozPreservesPitch = false;
+        audio.webkitPreservesPitch = false;
+      };
+
+      audio.volume = 1;
+      applySeniorSantaRate();
+
+      this.santaAudio = audio;
+      this.santaAudioUrl = url;
+
+      let finished = false;
+      const cleanup = (notifyEnd: boolean) => {
+        if (finished) return;
+        finished = true;
+        this.stopCallSleighBellsBed();
+        if (this.santaAudio === audio) {
+          this.santaAudio = null;
+        }
+        if (this.santaAudioUrl === url) {
+          try {
+            URL.revokeObjectURL(url);
+          } catch {
+            // ignore
+          }
+          this.santaAudioUrl = null;
+        }
+        if (notifyEnd) {
+          callbacks?.onEnd?.();
+        }
+      };
+
+      audio.onloadedmetadata = () => {
+        applySeniorSantaRate();
+      };
+
+      audio.onplay = () => {
+        applySeniorSantaRate();
+        this.startCallSleighBellsBed();
+        callbacks?.onStart?.();
+      };
+
+      audio.onended = () => {
+        cleanup(true);
+      };
+
+      audio.onerror = () => {
+        cleanup(false);
+        callbacks?.onError?.();
+      };
+
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {
+          cleanup(false);
+          callbacks?.onError?.();
+        });
+      }
+    } catch {
+      this.stopSantaTtsAudio();
+      callbacks?.onError?.();
+    }
+  }
+
+  public playSantaTtsAudio(
+    base64Wav: string,
+    callbacks?: {
+      onStart?: () => void;
+      onEnd?: () => void;
+      onError?: () => void;
+    },
+    mimeType?: string
+  ): void {
+    try {
+      const wavBlob = this.createSantaWavBlob(base64Wav, mimeType);
+      this.playSantaTtsBlob(wavBlob, callbacks);
+    } catch {
+      this.stopSantaTtsAudio();
+      callbacks?.onError?.();
+    }
+  }
+
+  public stopAll(): void {
+    this.stopRingtone();
+    this.stopAmbientMusic();
+    this.stopParadeMusic();
+    this.stopCallSleighBellsBed();
+    this.stopSantaTtsAudio();
+    if (this.ctx && this.ctx.state === 'running') {
+      this.ctx.suspend().catch(() => {});
+    }
+    this.stopListeners.forEach((cb) => {
+      try {
+        cb();
+      } catch {
+        // ignore listener error
+      }
     });
   }
 
