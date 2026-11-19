@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { Check, Copy, Crown, Share2, X } from 'lucide-react';
+import { Check, Copy, Crown, ExternalLink, KeyRound, Share2, X } from 'lucide-react';
 import { TranslationPack } from '../i18n/translations';
 import { audioEngine } from '../utils/audioEngine';
+
+const KOFI_VIP_URL = 'https://ko-fi.com/s/7917b02284';
+const SECRET_VIP_CODE = 'SANTA2026VIP';
 
 interface ShareModalProps {
   t: TranslationPack;
@@ -133,7 +136,22 @@ export const MagicPassModal: React.FC<MagicPassModalProps> = ({
   onClose,
   onActivatePass,
 }) => {
+  const [vipCode, setVipCode] = useState('');
+  const [codeError, setCodeError] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleVerifyVipCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (vipCode.trim().toUpperCase() === SECRET_VIP_CODE) {
+      setCodeError(false);
+      setVipCode('');
+      audioEngine.playMagicChime();
+      onActivatePass();
+    } else {
+      setCodeError(true);
+    }
+  };
 
   return (
     <div
@@ -161,7 +179,7 @@ export const MagicPassModal: React.FC<MagicPassModalProps> = ({
           </button>
         </div>
 
-        <ul className="space-y-3 text-sm text-amber-50/95">
+        <ul className="space-y-2.5 text-sm text-amber-50/95">
           {[t.magicPassPerk1, t.magicPassPerk2, t.magicPassPerk3].map((perk, idx) => (
             <li
               key={idx}
@@ -172,36 +190,82 @@ export const MagicPassModal: React.FC<MagicPassModalProps> = ({
           ))}
         </ul>
 
-        {!hasMagicPass && (
-          <div className="rounded-xl bg-gradient-to-r from-amber-400/15 via-yellow-300/10 to-amber-500/15 border border-amber-300/35 px-4 py-3 flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold text-amber-100/85">{t.magicPassTitle}</span>
-            <span className="font-mono-num text-lg font-extrabold text-amber-300">
-              {t.magicPassPriceLabel}
-            </span>
-          </div>
-        )}
-
-        <div className="rounded-xl bg-black/30 border border-amber-300/20 p-3.5 text-xs text-amber-200/80 leading-relaxed">
-          {t.magicPassDemoNote}
-        </div>
-
         {hasMagicPass ? (
-          <div className="min-h-[48px] px-4 py-3 rounded-xl bg-emerald-600/25 border border-emerald-400/50 text-emerald-200 font-bold text-sm flex items-center justify-center gap-2">
-            <Crown className="w-4 h-4" />
-            <span>{t.magicPassActiveBadge}</span>
+          <div className="rounded-xl bg-emerald-600/20 border border-emerald-400/50 p-4 space-y-1.5 text-center">
+            <div className="text-emerald-200 font-bold text-sm flex items-center justify-center gap-2">
+              <Crown className="w-4 h-4 shrink-0" />
+              <span>{t.magicPassActiveBadge}</span>
+            </div>
+            <p className="text-xs text-emerald-100/85 leading-relaxed">
+              {t.vipWelcomeMessage}
+            </p>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => {
-              audioEngine.playMagicChime();
-              onActivatePass();
-            }}
-            className="w-full min-h-[50px] px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 hover:brightness-105 text-stone-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition-all"
-          >
-            <Crown className="w-4 h-4 shrink-0" />
-            <span>{t.magicPassConfirm}</span>
-          </button>
+          <>
+            <div className="rounded-xl bg-gradient-to-r from-amber-400/15 via-yellow-300/10 to-amber-500/15 border border-amber-300/35 px-4 py-3 flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold text-amber-100/85">{t.magicPassTitle}</span>
+              <span className="font-mono-num text-lg font-extrabold text-amber-300">
+                {t.magicPassPriceLabel}
+              </span>
+            </div>
+
+            <p className="text-xs text-amber-200/80 leading-relaxed">
+              {t.vipKofiNote}
+            </p>
+
+            <a
+              href={KOFI_VIP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                audioEngine.playMagicChime();
+              }}
+              className="w-full min-h-[50px] px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 hover:brightness-105 text-stone-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition-all"
+            >
+              <Crown className="w-4 h-4 shrink-0" />
+              <span>{t.magicPassConfirm}</span>
+              <ExternalLink className="w-4 h-4 shrink-0" />
+            </a>
+
+            <form
+              onSubmit={handleVerifyVipCode}
+              className="pt-3 border-t border-amber-200/15 space-y-2"
+            >
+              <label
+                htmlFor="vip-activation-code"
+                className="flex items-center gap-1.5 text-xs font-semibold text-amber-200/85"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                <span>{t.vipCodeLabel}</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="vip-activation-code"
+                  type="text"
+                  value={vipCode}
+                  onChange={(e) => {
+                    setVipCode(e.target.value);
+                    if (codeError) setCodeError(false);
+                  }}
+                  placeholder={t.vipCodePlaceholder}
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="flex-1 min-w-0 min-h-[42px] px-3 py-2 rounded-xl bg-[#0e0914] border border-amber-300/25 text-amber-50 placeholder:text-amber-100/35 text-xs sm:text-sm font-mono-num uppercase focus:outline-none focus:border-amber-400"
+                />
+                <button
+                  type="submit"
+                  className="min-h-[42px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm whitespace-nowrap shrink-0 transition-colors"
+                >
+                  {t.vipCodeSubmitBtn}
+                </button>
+              </div>
+              {codeError && (
+                <p role="alert" className="text-xs font-medium text-rose-300">
+                  {t.vipCodeError}
+                </p>
+              )}
+            </form>
+          </>
         )}
       </div>
     </div>
