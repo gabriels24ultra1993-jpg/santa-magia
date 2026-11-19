@@ -557,11 +557,16 @@ export default function App() {
   };
 
   const handleActivateMagicPass = () => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.pass, 'true');
+    } catch {
+      // ignore storage errors
+    }
     setHasMagicPass(true);
     setUnlockedThemes(['classic', 'royal', 'aurora', 'certificate']);
     setMagicPoints((prev) => prev + 500);
     setIsMagicPassOpen(false);
-    showToast(t.magicPassUnlocked);
+    showToast(t.vipWelcomeMessage);
     if (pendingSleighEntry) {
       setPendingSleighEntry(false);
       setActiveWindow('sleighGame');
